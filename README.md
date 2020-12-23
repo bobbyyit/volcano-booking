@@ -109,6 +109,7 @@ Body
 |lastName  | last name|
 |from      | check-in date|
 |to        | check-out date |
+
 Constraints:
 * Check-in date cannot be on booking date
 * Booking duration cannot be greater than 3 days
