@@ -1,5 +1,6 @@
 package com.volcano.service;
 
+import com.google.common.collect.Sets;
 import com.volcano.domain.*;
 import com.volcano.repository.BookingRepository;
 import com.volcano.repository.UserRepository;
@@ -10,13 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -43,24 +39,26 @@ public class BookingServiceImpl implements BookingService {
             dateTo = dateFrom.plusDays(30);
         }
 
-        long between = ChronoUnit.DAYS.between(dateFrom, dateTo);
-        Map<String, Availability> availabilities = new TreeMap<>();
-        for (long i = 0; i < between; i++) {
-            Availability availability = new Availability();
-            LocalDate localDate = dateFrom.plusDays(i);
-            availability.setDate(localDate.toString());
-            availabilities.put(localDate.toString(), availability);
-        }
+        Set<LocalDate> all = dateFrom
+                .datesUntil(dateTo)
+                .collect(Collectors.toSet());
 
+        Set<LocalDate> booked = new HashSet<>();
         List<Booking> bookings = bookingRepository.getBookings(dateFrom, dateTo);
         for (Booking booking : bookings) {
-            long bookingDurationDays = ChronoUnit.DAYS.between(booking.getCheckInDate(), booking.getCheckOutDate());
-            for (long i = 0; i < bookingDurationDays; i++) {
-                LocalDate dateToRemove = booking.getCheckInDate().plusDays(i);
-                availabilities.remove(dateToRemove.toString());
-            }
+            Set<LocalDate> durationBooked = booking.getCheckInDate()
+                    .datesUntil(booking.getCheckOutDate())
+                    .collect(Collectors.toSet());
+            booked.addAll(durationBooked);
         }
-        return new ArrayList<>(availabilities.values());
+
+        List<LocalDate> difference = new ArrayList<>(Sets.difference(all, booked));
+        Collections.sort(difference);
+
+        return difference
+                .stream()
+                .map(localDate -> new Availability(localDate.toString()))
+                .collect(Collectors.toList());
     }
 
     @Override
